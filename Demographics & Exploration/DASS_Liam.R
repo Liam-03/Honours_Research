@@ -5,6 +5,7 @@ library(tidyr)
 
 DASS_File <- read.csv("DASS.csv") # Read the csv file and store 
 
+# DASS categories
 DASS_sums <- DASS_File %>%
   select(PIN, item, response) %>%
   group_by(PIN) %>%
