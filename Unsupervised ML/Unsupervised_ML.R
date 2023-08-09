@@ -1,9 +1,10 @@
 library(fpc)
+library(dplyr)
 library(cluster) 
 library(factoextra)
 library(dbscan)
-library(clusterCrit)
 library(e1071)
+library(ppclust)
 
 # 1) K means
 scaled_unsupervised_numerical_df <- unsupervised_numerical_df %>% # Scale numerical columns only
@@ -55,7 +56,7 @@ factoextra::fviz_pca_biplot(res.pca,
                             geom.ind = "point",
                             pointshape = 21,
                             pointsize = 2.5,
-                            fill,ind = as.factor(outcome$PHQ9),
+                            
                             col.var = "black",
                             legend.title = list(fill = "Groups"),
                             repel = TRUE,
