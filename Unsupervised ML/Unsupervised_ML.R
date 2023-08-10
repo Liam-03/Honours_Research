@@ -63,7 +63,6 @@ eigen_values_PCA <- res.pca$eig %>%
 num_components_95_variance <- min(which(eigen_values_PCA$`cumulative percentage of variance` >= 95))
 
 # 3) Hierarchical Clustering
-# a) Numerical datatset only
 # Compute the distance matrix
 dist_matrix <- dist(scaled_unsupervised_numerical_df)
 
@@ -80,7 +79,7 @@ k <- 3  # (According to elbow/silhouette method)
 hierarchical_clusters <- cutree(hc_result, k)
 
 # Print cluster assignments
-print(hierarchical_clusters)
+table(hierarchical_clusters)
 
 # 4a) DBSCAN
 # Compute the k-distance plot and sort distances
