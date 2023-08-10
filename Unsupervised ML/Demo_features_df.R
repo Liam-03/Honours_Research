@@ -126,9 +126,23 @@ unsupervised_df <- merge(unsupervised_df, vel_bin1 , by = "PIN")
 
 unsupervised_df <- merge(unsupervised_df, median_acceleration_bin_1and2_PIN , by = "PIN")
 
-# Extracting only numerical features
-unsupervised_numerical_df <- unsupervised_df %>%
-  select_if(is.numeric)
+# Add target features (GAD7 and PHQ9)
+GAD7_classification <- GAD7_sums %>%
+  select(PIN, Classification) %>%
+  rename(GAD7_status = Classification)
+
+PHQ9_classification <- PHQ9_sums %>%
+  select(PIN, Classification) %>%
+  rename(PHQ9_status = Classification)
+
+unsupervised_df_with_outcomes <- merge(unsupervised_df, PHQ9_classification, by = "PIN")
+unsupervised_df_with_outcomes <- merge(unsupervised_df_with_outcomes, GAD7_classification, by = "PIN")
+
+anti_join(unsupervised_df, unsupervised_df_with_outcomes, by = "PIN") # Seeing which participant was lost -> it was participant 00020_e1b7
+
+# Extracting only numerical features and PIN
+unsupervised_numerical_and_PIN_df_with_outcomes <- unsupervised_df_with_outcomes %>%
+  select(PIN, where(is.numeric))
 
 # Correlation matrix
 unsupervised_numerical_cor_pearson <- cor(unsupervised_numerical_df)
