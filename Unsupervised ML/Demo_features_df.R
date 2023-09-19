@@ -141,6 +141,8 @@ unsupervised_df_with_outcomes <- merge(unsupervised_df_with_outcomes, GAD7_class
 anti_join(unsupervised_df, unsupervised_df_with_outcomes, by = "PIN") # Seeing which participant was lost -> it was participant 00020_e1b7
 
 # Extracting only numerical features and PIN
+unsupervised_numerical_df <- unsupervised_df %>%
+  select(where(is.numeric))
 unsupervised_numerical_and_PIN_df_with_outcomes <- unsupervised_df_with_outcomes %>%
   select(PIN, where(is.numeric))
 
