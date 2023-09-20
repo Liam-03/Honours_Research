@@ -1,8 +1,11 @@
 library(caret)
+library(pROC)
 library(dplyr)
 library(randomForest)
 
 # 1) Model 1
+set.seed(33)  # Set a specific seed value
+
 # Separate data into variables and target
 X <- unsupervised_df_PHQ9 %>%
   select(-PHQ9_status) %>%
@@ -32,6 +35,10 @@ varImpPlot(rf_model)
 pred_test <- predict(rf_model, newdata = X_test, type= "class")
 
 confusionMatrix(table(pred_test, y_test))
+
+# ROC
+roc_obj <- roc(response = y_test, predictor = as.numeric(pred_test), levels = c(0, 1))
+plot(roc_obj, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
 
 # 2) Model 2
 control <- trainControl(
