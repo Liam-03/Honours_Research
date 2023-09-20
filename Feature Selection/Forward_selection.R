@@ -34,4 +34,3 @@ ffsmodel_rf <- ffs(X, as.factor(y), method = "rf", tuneLength = 1)
 ffsmodel_rf$selectedvars
 ffsmodel_rf$selectedvars_perf
 
-

@@ -3,19 +3,19 @@ library(dplyr)
 library(ggplot2)
 library(randomForest)
 
-scaled_unsupervised_df_PHQ9 <- unsupervised_df_with_outcomes %>%
+unsupervised_df_PHQ9 <- unsupervised_df_with_outcomes %>%
   # Remove PIN and GAD7 status
-  select(-PIN, -GAD7_status) %>%
+  select(-c(PIN, GAD7_status)) %>%
   # Save categorical features as factors
   mutate_at(c("location", "Gender", "Education_level", "Marital_status", "Employment_status", 
               "Gross_annual_household_income_USD"), as.factor)
 
-# Sepeate data into variables and target outcome
-X <- scaled_unsupervised_df_PHQ9 %>%
+# Separate data into variables and target outcome (not used here)
+X <- unsupervised_df_PHQ9 %>%
   select(-PHQ9_status) %>%
   as.data.frame()
 
-y <- scaled_unsupervised_df_PHQ9$PHQ9_status
+y <- unsupervised_df_PHQ9$PHQ9_status
 
 # Separate data into training and test sets (not used here)
 trainIndex <- createDataPartition(y, p = .7, list = FALSE, times = 1)[,1]
