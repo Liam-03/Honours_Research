@@ -16,7 +16,7 @@ X <- unsupervised_df_PHQ9 %>%
 y <- as.factor(unsupervised_df_PHQ9$PHQ9_status)
 y <- relevel(y, ref = "1")
 
-# Split into training and test sets (not used here)
+# Split into training and test sets
 trainIndex <- createDataPartition(y, p = .7, list = FALSE, times = 1)[,1]
 
 X_train <- X[trainIndex, ]
@@ -30,7 +30,7 @@ y_test  <- y[-trainIndex]
 rf_model <- randomForest(x = X_train, y = y_train)
 rf_model 
 
-importance(rf_model)   
+varImp(rf_model)   
 varImpPlot(rf_model) 
 
 # Make predictions on test set
@@ -72,7 +72,7 @@ print(rf_gridsearch)
 # Save best model
 best_rf_tuned <- rf_gridsearch$finalModel
 
-importance(best_rf_tuned)   
+varImp(best_rf_tuned)   
 varImpPlot(best_rf_tuned) 
 
 # Make predictions on test set
@@ -85,11 +85,13 @@ roc_tuned <- roc(response = y_test, predictor = as.numeric(pred_test_tuned), lev
 plot(roc_tuned, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
 
 # 3) Using Caret 'ranger'
-# Cross validation 
+set.seed(33)
 
 # Hyperparameter grid
 tunegrid_ranger <- expand.grid(
-  .mtry = c(1:10), min.node.size = c(1:12)
+  mtry = c(1:10), 
+  min.node.size = c(1:12), 
+  splitrule = "gini"
 )
 
 # Create model
@@ -100,6 +102,7 @@ rf_ranger <- train(
   tuneGrid = tunegrid_ranger,
   metric = 'Accuracy',
   trControl = control,
+  importance = "impurity"
 )
 
 print(rf_ranger)
@@ -108,14 +111,13 @@ print(rf_ranger)
 best_rf_ranger <- rf_ranger$finalModel
 
 importance(best_rf_ranger)   
-varImpPlot(best_rf_ranger) 
 
 # Make predictions on test set
-pred_test_ranger <- predict(best_rf_ranger, newdata = X_test, type = "class")
+pred_test_ranger <- predict(object = best_rf_ranger, data = X_test)
 
-confusionMatrix(table(pred_test_ranger, y_test))
+confusionMatrix(table(pred_test_ranger$predictions, reference = y_test))
 
 # ROC
-roc_ranger <- roc(response = y_test, predictor = as.numeric(pred_test_ranger), levels = c(0, 1))
+roc_ranger <- roc(response = y_test, predictor = as.numeric(pred_test_ranger$predictions), levels = c(0, 1))
 plot(roc_ranger, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
 
