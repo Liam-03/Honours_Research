@@ -42,6 +42,7 @@ confusionMatrix(table(pred_test, y_test))
 roc <- roc(response = y_test, predictor = as.numeric(pred_test), levels = c(0, 1))
 plot(roc, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
 
+
 # 2) Using Caret 'rf'
 set.seed(33)
 
@@ -83,6 +84,58 @@ confusionMatrix(table(pred_test_tuned, y_test))
 # ROC
 roc_tuned <- roc(response = y_test, predictor = as.numeric(pred_test_tuned), levels = c(0, 1))
 plot(roc_tuned, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
+
+# 2b) Excluding the least important features
+features <- varImp(best_rf_tuned)   
+important_features <- features %>%
+  filter(Overall > 1)
+
+important_data <- unsupervised_df_PHQ9[, c(rownames(important_features), "PHQ9_status")]
+
+set.seed(33)  # Set a specific seed value
+
+# Separate data into variables and target
+X_imp <- important_data %>%
+  select(-PHQ9_status) %>%
+  as.data.frame()
+
+y_imp <- as.factor(important_data$PHQ9_status)
+y_imp <- relevel(y_imp, ref = "1")
+
+# Split data into variables and target
+trainIndex_imp <- createDataPartition(y_imp, p = .7, list = FALSE, times = 1)[,1]
+
+X_train_imp <- X_imp[trainIndex_imp, ]
+X_test_imp  <- X_imp[-trainIndex_imp, ]
+
+y_train_imp <- y_imp[trainIndex_imp]
+y_train_fac_imp <- as.factor(y_train_imp)
+y_test_imp  <- y_imp[-trainIndex_imp]
+
+rf_gridsearch_imp <- train(
+  x = X_train_imp,
+  y = y_train_fac_imp,
+  method = 'rf',
+  tuneGrid = tunegrid,
+  metric = 'Accuracy',
+  trControl = control,
+)
+
+print(rf_gridsearch_imp)
+
+# Save best model
+best_rf_imp <- rf_gridsearch_imp$finalModel
+varImp(best_rf_imp)   
+
+# Make predictions on test set
+pred_test_imp <- predict(best_rf_imp, newdata = X_test_imp, type = "class")
+
+confusionMatrix(table(pred_test_imp, y_test_imp))
+
+# ROC
+roc_imp <- roc(response = y_test_imp, predictor = as.numeric(pred_test_imp), levels = c(0, 1))
+plot(roc_imp, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
+
 
 # 3) Using Caret 'ranger'
 set.seed(33)
