@@ -7,8 +7,9 @@ library(rpart.plot)
 set.seed(33)  # Set a specific seed value
 
 # Separate data into variables and target
+# Remove loc/ES as there were unseen categories in the test data 
 unsupervised_df_PHQ9_no_loc_emp <- unsupervised_df_PHQ9 %>%
-  select(-location, -Employment_status)
+  select(-location, -Employment_status) 
 
 X_no_loc_emp <- unsupervised_df_PHQ9_noloc %>%
   select(-PHQ9_status) %>%
