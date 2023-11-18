@@ -6,16 +6,17 @@ library(pROC)
 set.seed(33)
 # 1) Using 'knn' method
 # Create numerical dataframe
-numerical_unsupervised_df_PHQ9 <- unsupervised_df_PHQ9 %>%
+numerical_unsupervised_significant_df_PHQ9 <- uncorrelated_unsupervised_significant_df_PHQ9 %>%
   select_if(is.numeric)
 
 # Separate data into variables and target
-X <- numerical_unsupervised_df_PHQ9 %>%
+X <- numerical_unsupervised_significant_df_PHQ9 %>%
   select(-PHQ9_status) %>%
   as.data.frame()
 
-y <- as.factor(numerical_unsupervised_df_PHQ9$PHQ9_status)
-y <- relevel(y, ref = "1")
+y <- as.factor(uncorrelated_unsupervised_significant_df_PHQ9$PHQ9_status)
+levels(y) = c("Subclinical", "MD")
+y <- relevel(y, ref = "MD")
 
 # Split into training and test sets
 trainIndex <- createDataPartition(y, p = .7, list = FALSE, times = 1)[,1]
@@ -31,16 +32,22 @@ y_train <- y[trainIndex]
 y_train_fac <- as.factor(y_train)
 y_test  <- y[-trainIndex]
 
+y_test_num <- y_test
+levels(y_test_num) = c(1, 0)
+
 # Cross validation 
 control <- trainControl(
-  method='cv', 
+  method='repeatedcv', 
   number=3, 
-  search='grid'
+  repeats = 3,
+  search='grid',
+  summaryFunction = twoClassSummary,
+  classProbs = TRUE
 )
 
 # Hyperparameter grid
 tunegrid <- expand.grid(
-  k = c(5:10) # k = 1, 4 was chosen but overfitting
+  k = c(1:10) # k = 1, 4 was chosen but overfitting
 )
 
 # Create model
@@ -49,8 +56,8 @@ knn_gridsearch <- train(
   y = y_train_fac,
   method = 'knn',
   tuneGrid = tunegrid,
-  metric = 'Accuracy',
-  trControl = control,
+  metric = 'ROC',
+  trControl = control
 )
 
 print(knn_gridsearch)
@@ -60,11 +67,13 @@ best_knn <- knn_gridsearch$finalModel
 
 # Make predictions on test set
 pred_test_knn <- predict(best_knn, newdata = X_test_scaled, type = "class")
+pred_test_knn_probs <- predict(best_knn, newdata = X_test_scaled, type = "prob")[,1]
+pred_test_knn_num <- ifelse(pred_test_knn == "MD", 1, 0)
 
 confusionMatrix(table(pred_test_knn, y_test))
 
 # ROC
-roc_knn <- roc(response = y_test, predictor = as.numeric(pred_test_knn), levels = c(0, 1))
+roc_knn <- roc(response = y_test_num, predictor = pred_test_knn_probs, levels = c(0, 1))
 plot(roc_knn, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
 
 # 2) tuned model with 'kknn'
@@ -82,7 +91,7 @@ knn_gridsearch_2 <- train(
   y = y_train_fac,
   method = 'kknn',
   tuneGrid = tunegrid_2,
-  metric = 'Accuracy',
+  metric = 'ROC',
   trControl = control,
 )
 
@@ -92,11 +101,13 @@ best_knn_2 <- knn_gridsearch_2$finalModel
 
 # Make predictions on test set
 pred_test_knn_2 <- predict(best_knn_2, newdata = X_test_scaled)
+pred_test_knn_2_probs <- predict(best_knn_2, newdata = X_test_scaled, type = "prob")[,1]
+pred_test_knn_2_num <- ifelse(pred_test_knn_2 == "MD", 1, 0)
 
 confusionMatrix(table(pred_test_knn_2, y_test))
 
 # ROC
-roc_knn_2 <- roc(response = y_test, predictor = as.numeric(pred_test_knn_2), levels = c(0, 1))
+roc_knn_2 <- roc(response = y_test_num, predictor = pred_test_knn_2_probs, levels = c(0, 1))
 plot(roc_knn_2, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
 
 

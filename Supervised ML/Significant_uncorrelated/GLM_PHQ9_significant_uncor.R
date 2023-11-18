@@ -4,19 +4,18 @@ library(caret)
 library(glmnet)
 library(Matrix)
 
-set.seed(33)
-
 # 1) Basic GLM
 # Create numerical dataframe
-numerical_unsupervised_df_PHQ9 <- unsupervised_df_PHQ9 %>%
+set.seed(33)
+numerical_unsupervised_significant_df_PHQ9 <- uncorrelated_unsupervised_significant_df_PHQ9 %>%
   select_if(is.numeric)
 
 # Separate data into variables and target
-X <- numerical_unsupervised_df_PHQ9 %>%
+X <- numerical_unsupervised_significant_df_PHQ9 %>%
   select(-PHQ9_status) %>%
   as.data.frame()
 
-y <- as.factor(unsupervised_df_PHQ9$PHQ9_status)
+y <- as.factor(uncorrelated_unsupervised_significant_df_PHQ9$PHQ9_status)
 levels(y) = c("Subclinical", "MD")
 y <- relevel(y, ref = "MD")
 
@@ -35,8 +34,9 @@ levels(y_test_num) = c(1, 0)
 
 # Cross validation 
 control <- trainControl(
-  method='cv', 
-  number=5, 
+  method='repeatedcv', 
+  number =3,
+  repeats = 3,
   search='grid',
   summaryFunction = twoClassSummary,
   classProbs = TRUE
@@ -56,13 +56,14 @@ print(glm_model)
 varImp(glm_model)
 
 # Make predictions on test set
+pred_test_glm_probs <- predict(glm_model, newdata = X_test, type = "prob")[,1]
 pred_test_glm <- predict(glm_model, newdata = X_test)
 pred_test_glm_num <- ifelse(pred_test_glm == "MD", 1, 0)
 
 confusionMatrix(table(pred_test_glm, y_test))
 
 # ROC
-roc_glm <- roc(response = y_test_num, predictor = pred_test_glm_num, levels = c(0, 1))
+roc_glm <- roc(response = y_test_num, predictor = pred_test_glm_probs, levels = c(0, 1))
 plot(roc_glm, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
 
 # 2) Regularised GLM
@@ -89,11 +90,12 @@ varImp(glmnet_model)
 
 # Make predictions on test set
 pred_test_glmnet <- predict(glmnet_model, newdata = X_test)
+pred_test_glmnet_probs <- predict(glmnet_model, newdata = X_test, type = "prob")[,1]
 pred_test_glmnet_num <- ifelse(pred_test_glmnet == "MD", 1, 0)
 
 confusionMatrix(table(pred_test_glmnet, y_test))
 
 # ROC
-roc_glmnet <- roc(response = y_test_num, predictor = pred_test_glmnet_num, levels = c(0, 1))
+roc_glmnet <- roc(response = y_test_num, predictor = pred_test_glmnet_probs, levels = c(0, 1))
 plot(roc_glmnet, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
 

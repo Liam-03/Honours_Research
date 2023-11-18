@@ -8,13 +8,13 @@ library(pROC)
 set.seed(33)  # Set a specific seed value
 
 # Separate data into variables and target
-X <- unsupervised_df_PHQ9 %>%
+X <- uncorrelated_unsupervised_significant_df_PHQ9_2 %>%
   mutate_at(c("location", "Gender", "Education_level", "Marital_status", "Employment_status", 
               "Gross_annual_household_income_USD"), as.factor) %>%
   select(-PHQ9_status) %>%
   as.data.frame()
 
-y <- as.factor(unsupervised_df_PHQ9$PHQ9_status)
+y <- as.factor(uncorrelated_unsupervised_significant_df_PHQ9_2$PHQ9_status)
 levels(y) = c("Subclinical", "MD")
 y <- relevel(y, ref = "MD")
 
@@ -33,11 +33,13 @@ levels(y_test_num) = c(1, 0)
 
 # Cross validation 
 control <- trainControl(
-  method='cv', 
-  number=5, 
+  method='repeatedcv', 
+  number=3,
+  repeats = 3,
   search='grid',
   summaryFunction = twoClassSummary,
-  classProbs = TRUE
+  classProbs = TRUE,
+  sampling = "up"
 )
 
 # Hyperparameter grid
@@ -65,6 +67,8 @@ best_gbm <- gbm_model$finalModel
 
 varImp(best_gbm)   
 
+summary(gbm_model)
+
 # Make predictions on test set
 pred_test_gbm <- predict(best_gbm, newdata = X_test, type = "response")
 
@@ -79,8 +83,9 @@ class_predictions_num <- ifelse(pred_test_gbm >= threshold, 1, 0)
 confusionMatrix(table(class_predictions, y_test))
 
 # ROC
-roc_gbm <- roc(response = y_test_num, predictor = class_predictions_num, levels = c(0, 1))
-plot(roc_gbm, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
+roc_gbm <- roc(response = y_test_num, predictor = pred_test_gbm, levels = c(0, 1))
+plot(roc_gbm, main = "GBM ROC Curve", auc.polygon = TRUE, grid = TRUE, 
+     print.auc = TRUE, las = 1, auc.polygon.col = "aliceblue")
 
 
 # 2) XGB
@@ -137,5 +142,5 @@ class_predictions_xgb_num <- ifelse(pred_test_xgb >= threshold, 1, 0)
 confusionMatrix(table(class_predictions_xgb, y_test))
 
 # ROC
-roc_xgb <- roc(response = y_test_num, predictor = class_predictions_xgb_num, levels = c(0, 1))
+roc_xgb <- roc(response = y_test_num, predictor = pred_test_xgb, levels = c(0, 1))
 plot(roc_xgb, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)

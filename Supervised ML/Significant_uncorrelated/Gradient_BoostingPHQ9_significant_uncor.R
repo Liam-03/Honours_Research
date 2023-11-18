@@ -8,14 +8,15 @@ library(pROC)
 set.seed(33)  # Set a specific seed value
 
 # Separate data into variables and target
-X <- unsupervised_df_PHQ9 %>%
+X <- uncorrelated_unsupervised_significant_df_PHQ9 %>%
   mutate_at(c("location", "Gender", "Education_level", "Marital_status", "Employment_status", 
               "Gross_annual_household_income_USD"), as.factor) %>%
   select(-PHQ9_status) %>%
   as.data.frame()
 
-y <- as.factor(unsupervised_df_PHQ9$PHQ9_status)
-y <- relevel(y, ref = "1")
+y <- as.factor(uncorrelated_unsupervised_significant_df_PHQ9$PHQ9_status)
+levels(y) = c("Subclinical", "MD")
+y <- relevel(y, ref = "MD")
 
 # Split into training and test sets
 trainIndex <- createDataPartition(y, p = .7, list = FALSE, times = 1)[,1]
@@ -27,11 +28,17 @@ y_train <- y[trainIndex]
 y_train_fac <- as.factor(y_train)
 y_test  <- y[-trainIndex]
 
+y_test_num <- y_test
+levels(y_test_num) = c(1, 0)
+
 # Cross validation 
 control <- trainControl(
-  method='cv', 
-  number=5, 
-  search='grid'
+  method='repeatedcv', 
+  number=3,
+  repeats = 3,
+  search='grid',
+  summaryFunction = twoClassSummary,
+  classProbs = TRUE
 )
 
 # Hyperparameter grid
@@ -48,7 +55,7 @@ gbm_model <- train(
   y = y_train_fac,
   method = 'gbm',
   tuneGrid = tunegrid,
-  metric = 'Accuracy',
+  metric = 'ROC',
   trControl = control,
 )
 
@@ -66,16 +73,14 @@ pred_test_gbm <- predict(best_gbm, newdata = X_test, type = "response")
 threshold <- 0.5
 
 # Convert probabilities to class predictions
-class_predictions <- ifelse(pred_test_gbm >= threshold, 1, 0)
-
-# Convert to a factor if needed
-class_predictions <- factor(class_predictions, levels = levels(y_test))
+class_predictions <- ifelse(pred_test_gbm >= threshold, "MD", "Subclinical")
+class_predictions_num <- ifelse(pred_test_gbm >= threshold, 1, 0)
 
 # Create confusion matrix
 confusionMatrix(table(class_predictions, y_test))
 
 # ROC
-roc_gbm <- roc(response = y_test, predictor = as.numeric(class_predictions), levels = c(0, 1))
+roc_gbm <- roc(response = y_test_num, predictor = pred_test_gbm, levels = c(0, 1))
 plot(roc_gbm, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
 
 
@@ -105,7 +110,7 @@ xgb_model <- train(
   y = y_train_fac,
   method = 'xgbTree',
   tuneGrid = tunegrid_xgb,
-  metric = 'Accuracy',
+  metric = 'ROC',
   trControl = control,
   verbosity = 0
 )
@@ -123,14 +128,15 @@ pred_test_xgb <- predict(best_xgb, newdata = newdata_dmatrix)
 threshold <- 0.5
 
 # Convert probabilities to class predictions
-class_predictions_xgb <- ifelse(pred_test_xgb >= threshold, 1, 0)
+class_predictions_xgb <- ifelse(pred_test_xgb >= threshold, "MD", "Subclinical")
 
 # Convert to a factor if needed
 class_predictions_xgb <- factor(class_predictions_xgb, levels = levels(y_test))
+class_predictions_xgb_num <- ifelse(pred_test_xgb >= threshold, 1, 0)
 
 # Create confusion matrix
 confusionMatrix(table(class_predictions_xgb, y_test))
 
 # ROC
-roc_xgb <- roc(response = y_test, predictor = as.numeric(class_predictions_xgb), levels = c(0, 1))
+roc_xgb <- roc(response = y_test_num, predictor = pred_test_xgb, levels = c(0, 1))
 plot(roc_xgb, main = "ROC Curve", auc.polygon = TRUE, grid = TRUE, print.auc = TRUE)
