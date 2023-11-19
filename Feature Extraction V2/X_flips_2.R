@@ -27,14 +27,15 @@ x_flips_mean_median <- x_flips_per_click %>%
   summarise(mean_x_flips = mean(x_flips_per_click, na.rm = TRUE),
             median_x_flips = median(x_flips_per_click, na.rm = TRUE))
 
+x_flips_median <- x_flips_mean_median %>%
+  select(PIN, median_x_flips)
+
 x_flips_df_per_click_PIN <- x_flips_df_V2 %>%
   group_by(PIN) %>% # Per participant, not per stage as well
   summarize(
-    sm_flips = sum(x_flip),
-    sm_clicks = sum(event_type == "Click"),
-    ratio = (sm_flips / sm_clicks)
+    x_flips_per_click = (sum(x_flip, na.rm = TRUE) / sum(event_type == "Click"))
   ) %>%
-  filter(is.finite(ratio))
+  filter(is.finite(x_flips_per_click))
 
 # Inferential statistics preparation
 GAD7_xflips_PIN_merged <- merge(GAD7_sums, x_flips_df_per_click_PIN, by = "PIN")

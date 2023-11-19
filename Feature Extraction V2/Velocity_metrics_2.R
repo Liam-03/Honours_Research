@@ -2,12 +2,46 @@ library(dplyr)
 library(tidyr)
 
 # Feature extraction
-velocity_df <- mouse_data_completed_cumsum %>%
+# 1) Overall velocity for each click
+velocity_per_click_df <- length_differences_df %>%
   group_by(PIN, stage) %>%
-  mutate(distance = if_else(event_type == "Click" | is.na(lag(event_type)), NA, distance(x,y,lag(x),lag(y)))) %>%
+  mutate(time_change = timestamp - lag(timestamp)) %>%
+  mutate(time_change = if_else(is.na(time_change), 0, time_change))
+
+velocity_per_click_values <- velocity_per_click_df %>%
+  group_by(PIN, stage, movement_count) %>%
+  summarise(Distance_click = sum(diff_distance, na.rm = TRUE),
+            Time_click = sum(time_change, na.rm = TRUE),
+            Velocity_click = Distance_click/Time_click)
+
+mean_median_velocity <- velocity_per_click_values %>%
+  group_by(PIN) %>%
+  filter(is.finite(Velocity_click)) %>%
+  summarise(mean_velocity = mean(Velocity_click, na.rm = TRUE),
+            median_velocity = median(Velocity_click, na.rm = TRUE))
+
+# First timestamp after click doesn't count (velocity after reading, starting next movement)
+velocity_per_click_df_2 <- length_differences_df %>% 
+  group_by(PIN, stage, movement_count) %>%
+  mutate(time_change = timestamp - lag(timestamp)) %>%
+  mutate(time_change = if_else(is.na(time_change), 0, time_change))
+
+velocity_per_click_values_2 <- velocity_per_click_df_2 %>%
+  group_by(PIN, stage, movement_count) %>%
+  summarise(Distance_click = sum(diff_distance, na.rm = TRUE),
+            Time_click = sum(time_change, na.rm = TRUE),
+            Velocity_click = Distance_click/Time_click)
+
+mean_median_velocity_2 <- velocity_per_click_values %>%
+  group_by(PIN) %>%
+  filter(is.finite(Velocity_click)) %>%
+  summarise(mean_velocity = mean(Velocity_click, na.rm = TRUE),
+            median_velocity = median(Velocity_click, na.rm = TRUE))
+
+# 2) Velocity per movement
+velocity_df <- length_differences_df %>%
   mutate(time = timestamp - lag(timestamp)) %>%
   mutate(velocity = distance/time) %>%
-  filter(scroll_position_x == lag(scroll_position_x) & scroll_position_y == lag(scroll_position_y)) %>%
   mutate(velocity_diff = velocity - lag(velocity)) %>%
   mutate(velocity_change = if_else(sign(velocity_diff) > 0 & sign(lead(velocity_diff)) < 0, 
                                    "Local max", if_else(sign(velocity_diff) < 0 & sign(lead(velocity_diff)) > 0, 
@@ -17,79 +51,25 @@ velocity_df <- mouse_data_completed_cumsum %>%
   mutate(local_max = if_else(is.na(local_max), 0, local_max)) %>%
   mutate(local_min = if_else(is.na(local_min), 0, local_min)) # note global max/min still taken as local max/min
 
-mean_velocity_PIN_Stage <- velocity_df %>%
-  group_by(PIN, stage) %>%
+max_locals_velocity_per_click <- velocity_df %>%
+  group_by(PIN, stage, movement_count) %>%
   filter(!is.na(velocity) & !is.infinite(velocity)) %>%
-  summarise(mean_velocity = mean(velocity))
+  summarise(max_velocity = max(velocity, na.rm = TRUE),
+            local_min = sum(local_min, na.rm = TRUE),
+            local_max = sum(local_max, na.rm = TRUE),
+            median_vel = median(velocity, na.rm = TRUE))
 
-mean_velocity_PIN <- velocity_df %>%
+max_locals_velocity <- max_locals_velocity_per_click %>%
   group_by(PIN) %>%
-  filter(!is.na(velocity) & !is.infinite(velocity)) %>%
-  summarise(mean_velocity = mean(velocity))
+  summarise(global_max_velocity = max(max_velocity),
+            median_max_velocity = median(max_velocity),
+            mean_max_velocity = mean(max_velocity),
+            local_min_per_click = mean(local_min),
+            local_max_per_click = mean(local_max),
+            median_local_min = median(local_min),
+            median_local_max = median(local_max),
+            median_median_vel_per_click = median(median_vel))
 
-max_velocity_PIN_stage <- velocity_df %>%
-  group_by(PIN, stage) %>%
-  filter(!is.na(velocity) & !is.infinite(velocity)) %>%
-  summarise(max_velocity = max(velocity))
-
-max_velocity_PIN <- velocity_df %>%
-  group_by(PIN) %>%
-  filter(!is.na(velocity) & !is.infinite(velocity)) %>%
-  summarise(max_velocity = max(velocity))
-
-mean_max_velocity_PIN <- velocity_df %>%
-  group_by(PIN, stage, click_count) %>%
-  filter(!is.na(velocity) & !is.infinite(velocity)) %>%
-  summarise(max_velocity = max(velocity)) %>%
-  group_by(PIN) %>%
-  summarise(mean_max_velocity = mean(max_velocity))
-
-mean_max_velocity_PIN_stage <- velocity_df %>%
-  group_by(PIN, stage, click_count) %>%
-  filter(!is.na(velocity) & !is.infinite(velocity)) %>%
-  summarise(max_velocity = max(velocity)) %>%
-  group_by(PIN, stage) %>%
-  summarise(mean_max_velocity = mean(max_velocity))
-
-local_max_PIN_stage <- velocity_df %>%
-  group_by(PIN, stage) %>%
-  filter(!is.na(local_max)) %>%
-  summarise(
-    sm_local_max = sum(local_max),
-    sm_clicks = sum(event_type == "Click"),
-    local_max_per_click = round(sm_local_max / sm_clicks, 3)
-  ) %>%
-  filter(is.finite(local_max_per_click))
-
-local_max_PIN <- velocity_df %>%
-  group_by(PIN) %>%
-  filter(!is.na(local_max)) %>%
-  summarise(
-    sm_local_max = sum(local_max),
-    sm_clicks = sum(event_type == "Click"),
-    local_max_per_click = round(sm_local_max / sm_clicks, 3)
-  ) %>%
-  filter(is.finite(local_max_per_click))
-
-local_min_PIN_stage <- velocity_df %>%
-  group_by(PIN, stage) %>%
-  filter(!is.na(local_min)) %>%
-  summarise(
-    sm_local_min = sum(local_min),
-    sm_clicks = sum(event_type == "Click"),
-    local_min_per_click = round(sm_local_min / sm_clicks, 3)
-  ) %>%
-  filter(is.finite(local_min_per_click))
-
-local_min_PIN <- velocity_df %>%
-  group_by(PIN) %>%
-  filter(!is.na(local_min)) %>%
-  summarise(
-    sm_local_min = sum(local_min),
-    sm_clicks = sum(event_type == "Click"),
-    local_min_per_click = round(sm_local_min / sm_clicks, 3)
-  ) %>%
-  filter(is.finite(local_min_per_click))
 
 # Inferential statistics preparation
 # 1. Mean velocity

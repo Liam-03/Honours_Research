@@ -14,7 +14,7 @@ complete_completed <- complete_csv %>%
   filter(complete == "y")
 
 mouse_data_completed_cumsum <- mouse_data_completed %>%
-  group_by(PIN, stage) %>%
+  group_by(PIN) %>%
   mutate(click_count = cumsum(event_type == "Click"))
 
 # 2) Calculate number of clicks per participant
