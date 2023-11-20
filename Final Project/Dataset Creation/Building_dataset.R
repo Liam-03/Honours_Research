@@ -143,7 +143,31 @@ filtered_corr <- indices_corr %>%
   filter(row != col)
 
 # Assess correlation with PHQ9_raw
+PHQ9_raw <- PHQ9_sums %>%
+  select(c(PIN, sum))
+
+numerical_significant_features_PHQ9_raw <- merge(significant_features_demographics_PHQ9, PHQ9_raw, by = "PIN") %>%
+  select(where(is.numeric)) %>%
+  select(-PHQ9_status)
+
+correlation_PHQ9_raw <- cor(numerical_significant_features_PHQ9_raw)[c(1:length(numerical_significant_features_PHQ9_raw)), "sum"]
+
+correlation_df <- as.data.frame(correlation_PHQ9_raw) %>%
+  mutate(abs_corr = abs(correlation_PHQ9_raw)) 
+
+correlation_df <- correlation_df[order(-correlation_df$abs_corr),]
 
 # Remove correlated variables
+significant_uncorrelated_dataset <- significant_features_demographics_PHQ9 %>%
+  select(-c(median_mean_angle, mean_mean_angle, global_mean, x_flips_per_click, local_min_per_click, median_local_min,
+            median_local_max, mean_path_length, mean_path_ideal_ratio, median_path_ideal_ratio))
+
+final_dataset_numeric <- significant_uncorrelated_dataset %>%
+  select(where(is.numeric))
+
+cor_final_dataset <- cor(final_dataset_numeric)
+
+par(cex = 0.5)
+corrplot(cor_final_dataset, method = 'number')
 
 
