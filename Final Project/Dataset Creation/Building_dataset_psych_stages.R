@@ -48,20 +48,17 @@ demographics_pivot <- demographics_file %>%
          Employment_status = "7. Employment status", Gross_annual_household_income_USD = "8. Gross annual household income (US dollars)") %>%
   mutate(Age = as.numeric(Age))
 
-# Final pivoted dataframe
+# Add height and weight to demographics
 demographics_pivot <- demographics_pivot %>%
   mutate(Height_cm = demographics_height_mod$Height_cm,
-         Weight_kg = demographics_weight_mod$Weight_kg) %>%
-  mutate(BMI = Weight_kg/((Height_cm/100)^2)) %>%
-  select(-c(Height_cm, Weight_kg))
+         Weight_kg = demographics_weight_mod$Weight_kg)
 
 # Adding variables to the dataframe
 final_dataset_all_features <- merge(demographics_pivot, clicks_per_participant, by = "PIN") %>%
   rename(number_clicks = event_type)
 
 final_dataset_all_features <- merge(final_dataset_all_features, mean_response_time_PIN, by = "PIN")
-final_dataset_all_features <- merge(final_dataset_all_features, median_response_time_PIN, by = "PIN") %>%
-  rename(median_response_time = Response_Time)
+final_dataset_all_features <- merge(final_dataset_all_features, median_response_time_PIN, by = "PIN")
 
 final_dataset_all_features <- merge(final_dataset_all_features, mean_median_length_df, by = "PIN")
 final_dataset_all_features <- merge(final_dataset_all_features, actual_idealised_merged_df, by = "PIN")
@@ -83,14 +80,37 @@ final_dataset_all_features <- merge(final_dataset_all_features, velocity_200ms, 
 final_dataset_all_features <- merge(final_dataset_all_features, acceleration_200ms, by = "PIN")
 
 final_dataset_all_features <- merge(final_dataset_all_features, click_hold_df_PIN, by = "PIN") %>%
-  rename(mean_click_hold = mean_duration)
+  rename(mean_click_hold = mean_duration, median_click_hold = median_duration)
 
-# Add target features (GAD7 and PHQ9)
+# Add target feature PHQ9
 PHQ9_classification <- PHQ9_sums %>%
   select(PIN, Classification) %>%
   rename(PHQ9_status = Classification)
 
 final_dataset_all_features_PH9 <- merge(final_dataset_all_features, PHQ9_classification, by = "PIN")
+
+# Replace outliers
+IQR_height <- IQR(final_dataset_all_features_PH9$Height_cm)
+quartiles_height <- quantile(final_dataset_all_features_PH9$Height_cm, probs = c(0.25, 0.75))
+Q1_height <- quartiles_height[1]
+Q3_height <- quartiles_height[2]
+upper_bound_height <- Q3_height + 1.5 * IQR_height
+lower_bound_height <- Q1_height - 1.5 * IQR_height
+
+final_dataset_all_features_PH9$Height_cm <- ifelse(final_dataset_all_features_PH9$Height_cm > upper_bound_height | final_dataset_all_features_PH9$Height_cm < lower_bound_height, NA, final_dataset_all_features_PH9$Height_cm)
+
+final_dataset_all_features_PH9 <- final_dataset_all_features_PH9 %>%
+  group_by(PHQ9_status) %>%
+  mutate(Height_cm = ifelse(is.na(Height_cm), median(Height_cm, na.rm = TRUE), Height_cm)) %>%
+  ungroup()
+
+# Convert height/weight to BMI
+final_dataset_all_features_PH9 <- final_dataset_all_features_PH9 %>%
+  mutate(BMI = Weight_kg/((Height_cm/100)^2)) %>%
+  select(-c(Height_cm, Weight_kg)) %>%
+  relocate(BMI, .after = Age)
+
+range(final_dataset_all_features_PH9$BMI)
 
 # Extracting only numerical features and PIN
 numerical_final_dataset_all_features_PH9 <- final_dataset_all_features_PH9 %>%
@@ -126,7 +146,7 @@ significant_features_list <- names(significant_results)
 demographic_features_list <- names(demographics_pivot)
 
 significant_features_demographics_PHQ9 <- final_dataset_all_features_PH9 %>%
-  select(c(all_of(demographic_features_list), all_of(significant_features_list), "PHQ9_status"))
+  select(c(any_of(demographic_features_list), all_of(significant_features_list), "PHQ9_status"))
 
 # Correlation matrix
 numerical_significant_features <- significant_features_demographics_PHQ9 %>%
@@ -137,7 +157,7 @@ cor_significant_features <- cor(numerical_significant_features)
 par(cex = 0.5)
 corrplot(cor_significant_features, method = 'number')
 
-indices_corr <- which((cor_significant_features > 0.75 | cor_significant_features < -0/75), arr.ind = TRUE)
+indices_corr <- which((cor_significant_features > 0.75 | cor_significant_features < -0.75), arr.ind = TRUE)
 indices_corr <- as.data.frame(indices_corr)
 filtered_corr <- indices_corr %>%
   filter(row != col)
@@ -159,8 +179,9 @@ correlation_df <- correlation_df[order(-correlation_df$abs_corr),]
 
 # Remove correlated variables
 significant_uncorrelated_dataset <- significant_features_demographics_PHQ9 %>%
-  select(-c(median_mean_angle, mean_mean_angle, global_mean, x_flips_per_click, local_min_per_click, median_local_min,
-            median_local_max, mean_path_length, mean_path_ideal_ratio, median_path_ideal_ratio))
+  select(-c(median_response_time, q3_path_ideal_ratio, median_mean_angle, global_mean, local_min_per_click, median_local_min, median_local_max))
+
+# NOTE: mean path length and x-flips per click have cor of 0.75 so can also try removing mean path length
 
 final_dataset_numeric <- significant_uncorrelated_dataset %>%
   select(where(is.numeric))
@@ -176,4 +197,4 @@ significant_uncorrelated_dataset_ML <- significant_uncorrelated_dataset %>%
 
 # Removing insignificant demographic variables
 significant_uncorrelated_dataset_ML_2 <- significant_uncorrelated_dataset_ML %>%
-  select(-c(Gross_annual_household_income_USD, Age, Gender, BMI))
+  select(-c(Gross_annual_household_income_USD, Age, Gender))

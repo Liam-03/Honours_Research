@@ -8,13 +8,12 @@ library(pROC)
 set.seed(33)  # Set a specific seed value
 
 # Separate data into variables and target
-X <- significant_uncorrelated_dataset_ML %>%
-  mutate_at(c("location", "Gender", "Education_level", "Marital_status", "Employment_status", 
-              "Gross_annual_household_income_USD"), as.factor) %>%
+X <- significant_uncorrelated_dataset_ML_2 %>%
+  mutate_at(c("location", "Education_level", "Marital_status", "Employment_status"), as.factor) %>%
   select(-PHQ9_status) %>%
   as.data.frame()
 
-y <- as.factor(significant_uncorrelated_dataset_ML$PHQ9_status)
+y <- as.factor(significant_uncorrelated_dataset_ML_2$PHQ9_status)
 levels(y) = c("Subclinical", "MD")
 y <- relevel(y, ref = "MD")
 
@@ -64,6 +63,8 @@ print(gbm_model)
 
 # Save best model
 best_gbm <- gbm_model$finalModel
+
+varImp(best_gbm)   
 
 summary(gbm_model)
 

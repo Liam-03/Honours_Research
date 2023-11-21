@@ -8,14 +8,14 @@ set.seed(33)  # Set a specific seed value
 
 # Separate data into variables and target
 # Remove loc/ES as there were unseen categories in the test data 
-unsupervised_significant_df_PHQ9_no_loc_emp <- significant_uncorrelated_dataset_ML %>%
+unsupervised_significant_df_PHQ9_no_loc_emp <- significant_uncorrelated_dataset_ML_2 %>%
   select(-location, -Employment_status) 
 
 X_no_loc_emp <- unsupervised_significant_df_PHQ9_no_loc_emp %>%
   select(-PHQ9_status) %>%
   as.data.frame()
 
-y <- as.factor(significant_uncorrelated_dataset_ML$PHQ9_status)
+y <- as.factor(significant_uncorrelated_dataset_ML_2$PHQ9_status)
 levels(y) = c("Subclinical", "MD")
 y <- relevel(y, ref = "MD")
 

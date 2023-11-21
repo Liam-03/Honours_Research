@@ -27,7 +27,8 @@ deviation_df <- mouse_data_completed %>%
     end_y = last(y)
   ) %>% 
   rowwise() %>% 
-  mutate(dist = perp_dist(c(x, y), c(start_x, start_y), c(end_x, end_y)))
+  mutate(dist = perp_dist(c(x, y), c(start_x, start_y), c(end_x, end_y))) %>%
+  filter(is.finite(dist))
 
 deviation_per_click <- deviation_df %>%
   group_by(PIN, stage, movement_count) %>%

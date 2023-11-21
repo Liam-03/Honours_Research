@@ -20,7 +20,7 @@ mean_median_velocity <- velocity_per_click_values %>%
   summarise(mean_velocity = mean(Velocity_click, na.rm = TRUE),
             median_velocity = median(Velocity_click, na.rm = TRUE))
 
-# First timestamp after click doesn't count (velocity after reading, starting next movement)
+# First timestamp after click doesn't count (velocity after reading prompt, starting next movement)
 velocity_per_click_df_2 <- length_differences_df %>% 
   group_by(PIN, stage, movement_count) %>%
   mutate(time_change = timestamp - lag(timestamp)) %>%

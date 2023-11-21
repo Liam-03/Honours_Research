@@ -8,7 +8,7 @@ distance <- function(x1, y1, x2, y2) {
 }
 
 # b) Code that adds a column with the difference between each coordinate and the previous coordinate
-length_differences_df <- mouse_data_completed_cumsum %>%
+length_differences_df <- mouse_data_completed %>%
   group_by(PIN, stage) %>%
   mutate(
     change_scroll_x = scroll_position_x - lag(scroll_position_x),

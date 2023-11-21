@@ -9,11 +9,11 @@ library(e1071)
 set.seed(33)  # Set a specific seed value
 
 # Separate data into variables and target
-X <- significant_uncorrelated_dataset_ML %>%
+X <- significant_uncorrelated_dataset_ML_2 %>%
   select(-PHQ9_status) %>%
   as.data.frame()
 
-y <- as.factor(significant_uncorrelated_dataset_ML$PHQ9_status)
+y <- as.factor(significant_uncorrelated_dataset_ML_2$PHQ9_status)
 levels(y) = c("Subclinical", "MD")
 y <- relevel(y, ref = "MD")
 
@@ -70,7 +70,7 @@ control <- trainControl(
 
 # Hyperparameter grid
 tunegrid <- expand.grid(
-  .mtry = c(2:10)
+  .mtry = c(1:10)
 )
 
 # Create model
@@ -112,9 +112,9 @@ plot(roc_tuned, main = "Random Forest ROC Curve", auc.polygon = TRUE, grid = TRU
 # 2b) Excluding the least important features
 features <- varImp(best_rf_tuned)   
 important_features <- features %>%
-  filter(Overall > 3)
+  filter(Overall > 2)
 
-important_data <- significant_uncorrelated_dataset_ML[, c(rownames(important_features), "PHQ9_status")]
+important_data <- significant_uncorrelated_dataset_ML_2[, c(rownames(important_features), "PHQ9_status")]
 
 set.seed(33)  # Set a specific seed value
 
@@ -173,7 +173,7 @@ set.seed(33)
 
 # Hyperparameter grid
 tunegrid_ranger <- expand.grid(
-  mtry = c(2:10), 
+  mtry = c(1:10), 
   min.node.size = c(1:12), 
   splitrule = "gini"
 )
